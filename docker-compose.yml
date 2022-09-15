@@ -1,7 +1,4 @@
-# Archivo docker-compose para definir un stack de contenedores para un lago de datos 
-# Creado por: Abel coronado https://github.com/abxda/datalake4os
-# Modifcado por: Irving cabrera https://github.com/irvcaza/datalake4os
-
+# Container by docker-compose for data lake  
 version: "3"
 
 services:
@@ -17,7 +14,6 @@ services:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
     command: server /data
-
 
 ######### Data virtualization layer #########
 
@@ -45,7 +41,6 @@ services:
     environment:
       HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
       HIVE_SITE_CONF_hive_metastore_uris: "thrift://hive-metastore:9083"
-      # https://stackoverflow.com/a/53336873
       HIVE_SITE_CONF_hive_server2_active_passive_ha_enable: "true"
     depends_on: 
       - hive-metastore
@@ -72,12 +67,7 @@ services:
       - "./services/trino/hive.properties:/etc/trino/catalog/hive.properties"
       - "./services/trino/warehouse.properties:/etc/trino/catalog/warehouse.properties"
   
-######## Provision inicial de datos: 
-## Crea los buckets necesarios para hive metastores por lo que crea la informacion y muere 
-# Una vez que se crearon los buquets no es necesaria de nuevo 
-
-#   create `hive` and `default` buckets
-#   upload test data to minio
+#   create `hive` and `default` buckets and upload test data to minio
   mc:
     container_name: mc-provision
     image: minio/mc:RELEASE.2021-06-08T01-29-37Z
@@ -94,15 +84,14 @@ services:
 ######### Data ingestion layer #########
   jupyter:
    container_name: kedro
-   build: ./services/python-jupyter # Utilizar imagen definida en Dockerfile con librerias extra definidas por el usuario 
+   build: ./services/python-jupyter # IDLE 
    image: jupyter
    ports:
-     - "8888:8888" # El puerto 8888 es por defecto en jupyter, se peude cambiar por otro para evitar colisiones 
+     - "8888:8888" # Default port 8888 access web browser 
    volumes:
-     - ./services/python-jupyter/scripts:/home/jovyan/scripts # Monta la carpecta de scripts y notebooks
-     - ./services/python-jupyter/data:/home/jovyan/data #  Monta la carpecta de datos 
-   command: "start.sh jupyter lab --LabApp.token='password'" # Comando con el que arranca el notebook. Permite añadir variables a la ejecucion del notebook. '--LabApp.token' establece el token inicial para acceder al notebook
-
+     - ./services/python-jupyter/scripts:/home/jovyan/scripts 
+     - ./services/python-jupyter/data:/home/jovyan/data  
+   command: "start.sh jupyter lab --LabApp.token='password'" # change tocken 
 
 ######### Data interoperability Layer #########
 
@@ -113,7 +102,7 @@ services:
     ports:
       - "8888:8080" 
     volumes:
-      - kedro_vol:/home/LCiD # Monta la carpeta del usuario
+      - kedro_vol:/home/LCiD 
       - ./services/kedro/vscode_config.yaml:/home/LCiD/vscode_config.yaml
 
   tracking_server:
@@ -136,7 +125,6 @@ services:
       - minio
       - database
 
-
 ######### Data visualization layer #########
 
   superset:
@@ -150,8 +138,6 @@ services:
       - trino
     volumes: 
       - superset_vol:/app/superset_home
-
-
 
 networks:
   default:
