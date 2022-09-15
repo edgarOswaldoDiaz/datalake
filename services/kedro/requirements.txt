@@ -1,0 +1,7 @@
+# Archivo con paquetes extra ser instalados 
+kedro[pandas]
+minio
+trino
+pyhive
+thrift
+s3fs==0.5.2

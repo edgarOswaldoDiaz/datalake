@@ -1,0 +1,165 @@
+# Archivo docker-compose para definir un stack de contenedores para un lago de datos 
+# Creado por: Abel coronado https://github.com/abxda/datalake4os
+# Modifcado por: Irving cabrera https://github.com/irvcaza/datalake4os
+
+version: "3"
+
+services:
+######### Data storage layer #########
+  minio:
+    container_name: minio
+    image: minio/minio:RELEASE.2021-06-07T21-40-51Z
+    ports:
+      - 9000:9000
+    volumes:
+      - minio_vol:/data
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+    command: server /data
+
+
+######### Data virtualization layer #########
+
+  database:
+    container_name: hive-database
+    image: postgres:12
+    environment:
+      POSTGRES_DB: metastore
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hive
+    volumes: 
+      - database_vol:/var/lib/postgresql/data
+      - ./services/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  hive-server:
+    container_name: hive-server
+    ports: 
+      - 10002:10002
+    image: hive:3.1.2
+    build:
+      context: services/hive
+      dockerfile: hive.dockerfile
+    env_file:
+      - ./services/hive/hive.env
+    environment:
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
+      HIVE_SITE_CONF_hive_metastore_uris: "thrift://hive-metastore:9083"
+      # https://stackoverflow.com/a/53336873
+      HIVE_SITE_CONF_hive_server2_active_passive_ha_enable: "true"
+    depends_on: 
+      - hive-metastore
+
+  hive-metastore:
+    container_name: hive-metastore
+    image: hive:3.1.2
+    build:
+      context: services/hive
+      dockerfile: hive.dockerfile
+    env_file:
+      - ./services/hive/hive.env
+    command: hivemetastore
+    depends_on: 
+      - database
+
+  trino:
+    container_name: trino
+    image: trinodb/trino:358
+    ports:
+      - 8080:8080
+    volumes:
+      - "./services/trino/config.properties:/etc/trino/config.properties"
+      - "./services/trino/hive.properties:/etc/trino/catalog/hive.properties"
+      - "./services/trino/warehouse.properties:/etc/trino/catalog/warehouse.properties"
+  
+######## Provision inicial de datos: 
+## Crea los buckets necesarios para hive metastores por lo que crea la informacion y muere 
+# Una vez que se crearon los buquets no es necesaria de nuevo 
+
+#   create `hive` and `default` buckets
+#   upload test data to minio
+  mc:
+    container_name: mc-provision
+    image: minio/mc:RELEASE.2021-06-08T01-29-37Z
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5 && \
+        mc config host add super-puper-config http://minio:9000 minio minio123 && \
+        mc mb super-puper-config/hive && \
+        mc mb super-puper-config/mlflow && \
+        mc mb super-puper-config/default || exit 1;"
+    depends_on: 
+      - "minio"
+
+######### Data ingestion layer #########
+  jupyter:
+   container_name: kedro
+   build: ./services/python-jupyter # Utilizar imagen definida en Dockerfile con librerias extra definidas por el usuario 
+   image: jupyter
+   ports:
+     - "8888:8888" # El puerto 8888 es por defecto en jupyter, se peude cambiar por otro para evitar colisiones 
+   volumes:
+     - ./services/python-jupyter/scripts:/home/jovyan/scripts # Monta la carpecta de scripts y notebooks
+     - ./services/python-jupyter/data:/home/jovyan/data #  Monta la carpecta de datos 
+   command: "start.sh jupyter lab --LabApp.token='password'" # Comando con el que arranca el notebook. Permite añadir variables a la ejecucion del notebook. '--LabApp.token' establece el token inicial para acceder al notebook
+
+
+######### Data interoperability Layer #########
+
+  kedro:
+    container_name: kedro
+    build: ./services/kedro 
+    image: kedro
+    ports:
+      - "8888:8080" 
+    volumes:
+      - kedro_vol:/home/LCiD # Monta la carpeta del usuario
+      - ./services/kedro/vscode_config.yaml:/home/LCiD/vscode_config.yaml
+
+  tracking_server:
+    restart: always
+    build: ./services/mlflow/
+    image: mlflow:server
+    container_name: mlflow_server
+    ports:
+      - 5000:5000
+    environment:
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+    command: >
+      mlflow server 
+      --backend-store-uri postgresql://mlflow:mlflow@database:5432/mlflow
+      --host 0.0.0.0
+      --default-artifact-root s3://mlflow/
+    depends_on: 
+      - minio
+      - database
+
+
+######### Data visualization layer #########
+
+  superset:
+    build:
+      context: ./services/superset
+    image: superset:trino
+    ports: 
+      - 8090:8080
+    container_name: superset
+    depends_on:
+      - trino
+    volumes: 
+      - superset_vol:/app/superset_home
+
+
+
+networks:
+  default:
+    driver: bridge
+    name: datalake4os-net
+
+volumes:
+  minio_vol:
+  kedro_vol:
+  database_vol:
+  superset_vol:
