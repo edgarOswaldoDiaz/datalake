@@ -1,6 +1,6 @@
-# datalake
+# Data Lake
 
-Repository Data Lake components 
+Repository components by container stack 
 
 ## Getting started
 
