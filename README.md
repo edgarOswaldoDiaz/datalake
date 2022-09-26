@@ -21,13 +21,3 @@ Repository components by container stack:
 - SuperSet: is a data exploration and visualization platform that can connect to any SQL-based data source through the component called SQLAlchemy, supporting large volumes of information, based on a petabyte scale. It has various graphs and maps, which are chosen according to the needs. It is configured through selectors that are presented in a control panel, based on web technology, thus allowing controlled access by users.
 
 - D3.js (Data-Driven Documents): it is a JavaScript library to manipulate documents based on data specialized in visualization with web technologies.
-
-
-## Getting started
-
-```
-cd existing_repo
-git remote add origin https://git.inegi.org.mx/laboratorio-de-ciencia-de-datos/datalake.git
-git branch -M master
-git push -uf origin master
-```
