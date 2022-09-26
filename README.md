@@ -1,4 +1,4 @@
-# Data Lake
+# Data Lake Strategy for Data Science Workflows
 
 Repository components by container stack:
 
