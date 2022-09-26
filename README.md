@@ -6,6 +6,8 @@ Repository components by container stack:
 
 - Python: It is an open-source object-oriented programming language. Its simple syntax and the number of its libraries facilitate the rapid creation of programs and information flows.
 
+- Kedro: is a framework for creating data flows. Adopt best practices in software engineering to create data science code that is reproducible, maintainable, and modular.
+
 - Jupyter Lab – Notebook: It is an interactive web development environment, with support for different languages, in which Python stands out. It allows you to combine code execution with documentation and visualizations in a single file, thus facilitating prototyping and dissemination of results.
 
 - MinIO: a software for distributed storage servers complaint with “S3” protocol called, which allows the creation of high-performance private data clouds. It also performs standardized interaction with other services, to access your files in any format.
